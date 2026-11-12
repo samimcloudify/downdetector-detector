@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detect the Downdetector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07060f; --glass:rgba(22,20,44,.62); --line:rgba(160,140,255,.18); --text:#f2f0ff; --muted:#9a94bf;
+    --up:#3dffa2; --down:#ff3d6e; --warn:#ffc93d; --a1:#8b5cff; --a2:#00e1ff; --a3:#ff4fd8;
+    --state:var(--a2);
+  }
+  body.s-up{--state:var(--up)} body.s-down{--state:var(--down)} body.s-you{--state:var(--warn)}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Space Grotesk",system-ui,sans-serif;overflow-x:hidden}
+  body{min-height:100vh;padding:24px 16px 48px;display:flex;justify-content:center}
+
+  /* synthwave background */
+  .sky{position:fixed;inset:0;z-index:-2;background:
+      radial-gradient(60% 45% at 50% 0%, rgba(139,92,255,.45), transparent 70%),
+      radial-gradient(40% 35% at 85% 20%, rgba(255,79,216,.25), transparent 70%),
+      radial-gradient(40% 35% at 10% 30%, rgba(0,225,255,.18), transparent 70%), var(--bg)}
+  .floor{position:fixed;left:-50%;right:-50%;bottom:-10vh;height:55vh;z-index:-1;
+    background-image:linear-gradient(rgba(139,92,255,.55) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,255,.55) 1px,transparent 1px);
+    background-size:60px 60px;transform:perspective(320px) rotateX(62deg);transform-origin:center top;
+    animation:floor 2.4s linear infinite;mask-image:linear-gradient(to bottom,transparent,#000 40%)}
+  @keyframes floor{to{background-position:0 60px}}
+  .scan{position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px)}
+  .flash{position:fixed;inset:0;pointer-events:none;z-index:40;background:var(--down);opacity:0}
+  .flash.go{animation:flash 1.2s ease-out}
+  @keyframes flash{0%,30%{opacity:.35}15%,45%{opacity:0}35%{opacity:.25}100%{opacity:0}}
+
+  .wrap{width:100%;max-width:820px}
+  header{text-align:center;margin:6px 0 18px}
+  .badge{display:inline-flex;gap:8px;align-items:center;font:700 11px "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;
+    padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:var(--muted);backdrop-filter:blur(8px)}
+  .live{width:8px;height:8px;border-radius:50%;background:var(--down);box-shadow:0 0 10px var(--down);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  h1{font-family:"Bungee",sans-serif;font-weight:400;font-size:clamp(34px,7vw,68px);line-height:1;margin:14px 0 10px;
+    background:linear-gradient(90deg,var(--a2),var(--a1),var(--a3),var(--a2));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:shine 6s linear infinite;filter:drop-shadow(0 0 22px rgba(139,92,255,.45))}
+  @keyframes shine{to{background-position:300% 0}}
+  .tag{color:var(--muted);margin:0 auto;font-size:15px;max-width:620px;line-height:1.5}
+  .tag b{color:var(--text)}
+
+  .ticker{overflow:hidden;white-space:nowrap;border:1px solid var(--line);border-radius:14px;background:rgba(255,201,61,.07);margin:0 0 16px;
+    font:700 12px "JetBrains Mono",monospace;color:var(--warn);display:flex;align-items:stretch}
+  .ticker .lbl{flex:none;background:var(--warn);color:#120d00;padding:9px 12px;letter-spacing:.1em}
+  .ticker .rail{overflow:hidden;flex:1;padding:9px 0}
+  .ticker-in{display:inline-block;padding-left:100%;animation:scroll 70s linear infinite}
+  @keyframes scroll{to{transform:translateX(-100%)}}
+
+  .banner{display:none;border:1px dashed var(--warn);color:var(--warn);background:rgba(255,201,61,.07);border-radius:12px;
+    padding:10px 14px;font-size:13px;margin-bottom:16px;line-height:1.45}
+  .banner.show{display:block}
+
+  .glass{background:var(--glass);border:1px solid var(--line);border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  .hero{padding:26px 22px 24px;text-align:center;position:relative;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(255,255,255,.03) inset,0 30px 80px -30px var(--state);transition:box-shadow .6s}
+  .hero.shake{animation:shake .45s 3}
+  @keyframes shake{25%{transform:translate(-7px,2px) rotate(-1deg)}75%{transform:translate(7px,-2px) rotate(1deg)}}
+
+  .radar{width:210px;height:210px;margin:0 auto 6px;position:relative;border-radius:50%;
+    background:radial-gradient(circle,transparent 30%,rgba(255,255,255,.04) 31%,transparent 32%,transparent 55%,rgba(255,255,255,.05) 56%,transparent 57%,transparent 80%,rgba(255,255,255,.06) 81%,transparent 82%);
+    border:1px solid var(--line)}
+  .radar::before{content:"";position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(from 0deg,transparent 0 300deg,color-mix(in srgb,var(--state) 55%,transparent) 360deg);animation:sweep 2.6s linear infinite;transition:background .6s}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  .eye{position:absolute;inset:38px;width:134px;height:134px;color:var(--state);transition:color .5s;filter:drop-shadow(0 0 14px var(--state))}
+  .eye .lid{transform-origin:67px 67px;animation:blink 5s infinite}
+  .eye.wink .lid{animation:wink .5s}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.06)}}
+  @keyframes wink{50%{transform:scaleY(.06)}}
+  #pupil{transition:transform .12s ease-out}
+  #iris{transition:r .4s}
+  .sweat{opacity:0;transition:opacity .4s}
+  body.s-down .sweat{opacity:1;animation:drip 1.4s infinite}
+  @keyframes drip{from{transform:translateY(0)}to{transform:translateY(10px);opacity:0}}
+
+  .q{font:700 12px "JetBrains Mono",monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:6px 0 0}
+  .answer{font-family:"Bungee",sans-serif;font-size:clamp(64px,15vw,120px);margin:2px 0 8px;line-height:1;color:var(--state);
+    text-shadow:0 0 30px color-mix(in srgb,var(--state) 60%,transparent);transition:color .5s}
+  body.s-wait .answer{color:var(--muted);text-shadow:none;animation:pulse 1s infinite}
+  .bubble{position:relative;display:inline-block;max-width:560px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:16px;
+    padding:12px 16px;font-size:17px;line-height:1.4;min-height:50px}
+  .bubble::before{content:"";position:absolute;top:-8px;left:50%;width:14px;height:14px;background:inherit;border-left:1px solid var(--line);border-top:1px solid var(--line);
+    transform:translateX(-50%) rotate(45deg);backdrop-filter:blur(14px)}
+  .meta{font:12px "JetBrains Mono",monospace;color:var(--muted);margin-top:12px}
+  .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  button{font:700 14px "Space Grotesk",sans-serif;border-radius:999px;padding:11px 18px;cursor:pointer;border:1px solid var(--line);
+    background:rgba(255,255,255,.06);color:var(--text);transition:transform .15s,border-color .2s,box-shadow .2s}
+  button:hover{transform:translateY(-2px);border-color:var(--a2);box-shadow:0 8px 24px -10px var(--a2)}
+  button:active{transform:translateY(0) scale(.97)}
+  button.primary{background:linear-gradient(90deg,var(--a1),var(--a3));border:0;color:#fff}
+  button.ghost{display:none} button.ghost.show{display:inline-block}
+  .panic{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:18px;font:12px "JetBrains Mono",monospace;color:var(--muted)}
+  .panic .bar{width:200px;height:10px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+  #panicbar{height:100%;width:5%;background:var(--up);border-radius:99px;transition:width .7s cubic-bezier(.3,1.6,.5,1),background .6s}
+  #paniclabel{min-width:110px;text-align:left;color:var(--text)}
+
+  .sign{margin:14px 0;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;padding:16px 20px;border-radius:18px;
+    background:repeating-linear-gradient(-45deg,#ffc93d 0 16px,#141008 16px 32px);}
+  .sign .inner{grid-column:1/-1;background:#141008;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;text-align:center}
+  .sign .lab{font:700 12px "JetBrains Mono",monospace;letter-spacing:.12em;color:var(--warn);text-transform:uppercase}
+  .sign .clock{font:700 34px "JetBrains Mono",monospace;color:#fff;letter-spacing:.04em}
+  .sign .rec{font-size:12px;color:var(--muted)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px 18px}
+  .wide{grid-column:1/-1}
+  .panel h2{font:700 12px "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .chain{list-style:none;margin:0;padding:0;font-size:14px}
+  .chain li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .chain li:last-child{border-bottom:0}
+  .chain .ic{width:22px;text-align:center}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;background:#4b4766}
+  .dot.up{background:var(--up);box-shadow:0 0 10px var(--up)} .dot.down{background:var(--down);box-shadow:0 0 10px var(--down)}
+  .chain small{color:var(--muted);margin-left:auto;font:11px "JetBrains Mono",monospace;text-align:right}
+  .quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:640px){.quotes{grid-template-columns:1fr}}
+  .quotes p{margin:0;font-size:14px;line-height:1.45;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px}
+  .quotes .stars{color:var(--warn);letter-spacing:2px;font-size:12px;display:block;margin-bottom:4px}
+  .quotes span{display:block;color:var(--muted);font-size:12px;margin-top:6px}
+  .log{font:12px "JetBrains Mono",monospace;max-height:160px;overflow:auto;margin:0;padding:0;list-style:none}
+  .log li{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:10px}
+  .log .t{color:var(--muted)} .log .s-up{color:var(--up)} .log .s-down{color:var(--down)} .log .s-you{color:var(--warn)}
+  .log li:first-child{animation:pop .4s}
+  @keyframes pop{from{opacity:0;transform:translateX(-8px)}}
+  .links{display:flex;flex-wrap:wrap;gap:8px}
+  .links a{font-size:13px;color:var(--text);text-decoration:none;border:1px solid var(--line);padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.04)}
+  .links a:hover{border-color:var(--a2);color:var(--a2)}
+  details{border-bottom:1px solid rgba(255,255,255,.06);padding:10px 0}
+  details:last-child{border-bottom:0}
+  summary{cursor:pointer;font-weight:700;list-style:none}
+  summary::before{content:"＋ ";color:var(--a3)}
+  details[open] summary::before{content:"－ "}
+  details p{margin:8px 0 0;color:var(--muted);font-size:14px}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:28px;line-height:1.7}
+  footer .latin{font-family:"Bungee",sans-serif;color:var(--text);font-size:16px}
+  .second{font-size:12px;margin-top:14px}
+  .second a{color:var(--a2);text-decoration:none}
+  .second a:hover{text-decoration:underline}
+  .fine{font-size:11px;opacity:.7;max-width:580px;margin:10px auto 0}
+  .powered{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:9px 18px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(10px);box-shadow:0 0 30px -10px var(--a1);font-size:14px}
+  .powered span{color:var(--muted)}
+  .powered b{font-family:"Bungee",sans-serif;font-weight:400;letter-spacing:.06em;font-size:16px;
+    background:linear-gradient(90deg,var(--a2),var(--a1),var(--a3));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .klogo{display:inline-flex;align-items:center;gap:7px;background:#196EE0;color:#fff !important;font:700 16px "Space Grotesk",sans-serif;
+    padding:6px 14px;border-radius:999px;letter-spacing:.01em}
+  .kdots{display:inline-flex;gap:3px}
+  .kdots i{width:7px;height:7px;border-radius:50%;background:#fff}
+  .kdots i:first-child{background:#A3EF11}
+  .powered{padding:6px 8px 6px 18px !important}
+  .powered-sub{font-size:12px;margin-top:8px}
+  .story{margin-bottom:14px}
+  .hist{margin-bottom:14px}
+  .tl{list-style:none;margin:0;padding:0 0 0 6px;position:relative}
+  .tl::before{content:"";position:absolute;left:11px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--down),var(--a1),var(--a2))}
+  .tl li{position:relative;display:grid;grid-template-columns:120px 1fr;gap:6px 14px;padding:0 0 16px 26px;font-size:14px;line-height:1.5}
+  .tl li::before{content:"";position:absolute;left:0;top:5px;width:12px;height:12px;border-radius:50%;background:var(--down);box-shadow:0 0 12px var(--down);border:2px solid var(--bg)}
+  .tl li.next::before{background:var(--muted);box-shadow:none;animation:pulse 1.4s infinite}
+  .tl time{font:700 12px "JetBrains Mono",monospace;color:var(--warn);padding-top:2px}
+  .tl b{color:#fff}
+  .tl em{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+  .tl a{font:11px "JetBrains Mono",monospace;color:var(--a2);text-decoration:none;opacity:.8}
+  .tl a:hover{text-decoration:underline}
+  @media (max-width:560px){.tl li{grid-template-columns:1fr}}
+  .story p{margin:0 0 10px;font-size:15px;line-height:1.55;color:#d9d5f5}
+  .story .big{font-family:"Bungee",sans-serif;font-size:clamp(18px,3.4vw,24px);color:var(--a2);margin:14px 0}
+  .vote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;position:relative;min-height:46px}
+  .vote span{color:var(--muted);font-size:14px}
+  #no{position:relative;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+  .vote-msg{margin-top:10px;font-size:14px;min-height:20px;color:var(--warn)}
+  .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:8px}
+  .chips span{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text)}
+  a.powered{text-decoration:none;color:inherit;transition:transform .15s,box-shadow .2s}
+  a.powered:hover{transform:translateY(-2px);box-shadow:0 0 40px -6px var(--a3)}
+  .powered-sub a{color:var(--a2);text-decoration:none;font-family:"JetBrains Mono",monospace}
+  .powered-sub a:hover{text-decoration:underline}
+
+  .fx{position:fixed;top:-40px;z-index:45;pointer-events:none;font-size:26px;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+</style>
+</head>
+<body class="s-wait">
+<div class="sky"></div><div class="floor"></div><div class="flash" id="flash"></div>
+
+<div class="wrap">
+  <header>
+    <span class="badge"><span class="live"></span>Live · Est. about 4 minutes ago</span>
+    <h1>We watch the watchmen.</h1>
+    <p class="tag">Downdetector tells you when everything else is down. We tell you when <b>Downdetector</b> is down. Nobody tells you when <b>we're</b> down. Please don't ask. It's a sore subject.</p>
+  </header>
+
+  <div class="ticker" aria-hidden="true"><span class="lbl">BREAKING</span><div class="rail"><div class="ticker-in" id="ticker"></div></div></div>
+
+  <div id="banner" class="banner">
+    🧪 <b>Preview mode.</b> This preview runs in a sandbox that blocks requests to other websites, so the results here are simulated.
+    Host the page on its own domain and it checks Downdetector for real from your browser.
+  </div>
+
+  <section class="glass hero" id="hero" aria-live="polite">
+    <div class="radar">
+      <svg class="eye" id="eye" viewBox="0 0 134 134" aria-hidden="true">
+        <g class="lid">
+          <path d="M8 67 Q67 8 126 67 Q67 126 8 67Z" fill="#0d0b1e" stroke="currentColor" stroke-width="4"/>
+          <clipPath id="eyeclip"><path d="M8 67 Q67 8 126 67 Q67 126 8 67Z"/></clipPath>
+          <g clip-path="url(#eyeclip)">
+            <g id="pupil">
+              <circle id="iris" cx="67" cy="67" r="22" fill="currentColor"/>
+              <circle cx="67" cy="67" r="10" fill="#07060f"/>
+              <circle cx="74" cy="60" r="4.5" fill="#fff"/>
+            </g>
+          </g>
+        </g>
+        <path class="sweat" d="M118 30 q5 8 0 12 q-5 -4 0 -12z" fill="#7fd8ff"/>
+      </svg>
+    </div>
+    <p class="q">Is Downdetector down?</p>
+    <div id="answer" class="answer">…</div>
+    <div class="bubble" id="quip">Squinting at the watchtower…</div>
+    <div id="meta" class="meta">first check in progress</div>
+    <div class="btns">
+      <button class="primary" id="again">🔁 Check again</button>
+      <button id="self">🪞 Is THIS site down?</button>
+      <button class="ghost" id="chaos">☄️ Simulate the apocalypse</button>
+    </div>
+    <div class="panic"><span>PANIC</span><div class="bar"><div id="panicbar"></div></div><span id="paniclabel">Zen</span></div>
+    <div class="meta">⚠ Time since our last panic: <b id="clock">00:00:00</b> · record <b id="record">00:00:00</b></div>
+  </section>
+
+
+  <section class="glass panel story">
+    <h2>📖 The origin story</h2>
+    <p>One day, a certain four-coloured-squares cloud suite went down. Millions of office workers suddenly had nothing to do. Most went for coffee. Dave went for an existential crisis:</p>
+    <p class="big">"Wait… what if <i>Downdetector</i> goes down?"</p>
+    <p>The suite came back in two hours. Dave is still building this page. Nobody has told him.</p>
+    <div class="vote">
+      <span>Like the idea?</span>
+      <button id="yes" class="primary">👍 Yes, Dave is a genius</button>
+      <button id="no">👎 Nah</button>
+    </div>
+    <div class="vote-msg" id="votemsg"></div>
+  </section>
+
+  <section class="glass panel hist">
+    <h2>🏛️ Hall of fame: times the watchmen actually fell</h2>
+    <ol class="tl">
+      <li><time>2 Jul 2019</time><div><b>The Great Regex Incident.</b> One bad firewall rule at Cloudflare spiked CPU to 100% worldwide for about 30 minutes. Downdetector showed a 502, so nobody could check why Downdetector showed a 502.
+        <em>Lesson: never deploy a regex on a Tuesday. Or ever.</em> <a href="https://siliconangle.com/2019/07/02/cloudflare-outage-briefly-knocks-parts-web-offline" target="_blank" rel="noopener">source</a></div></li>
+      <li><time>6–7 Jun 2020</time><div><b>The 53-Minute Wobble.</b> A backend issue gave Downdetector a partial outage. People couldn't report outages because the outage-reporting site had an outage.
+        <em>Peak 2020 energy.</em> <a href="https://pingoru.io/providers/ookla/incidents/2265374" target="_blank" rel="noopener">source</a></div></li>
+      <li><time>18 Nov 2025</time><div><b>The Big One.</b> A Cloudflare outage took down X, ChatGPT, Spotify… and Downdetector. Thousands of people tried to report that everything was down, to a site that was down.
+        <em>Someone then built a Downdetector downdetector. Then someone built a Downdetector downdetector downdetector. We are part of the problem.</em> <a href="https://www.engadget.com/big-tech/cloudflare-hit-by-outage-causing-widespread-errors-124208302.html" target="_blank" rel="noopener">source</a></div></li>
+      <li><time>5 Dec 2025</time><div><b>The Sequel Nobody Asked For.</b> Just 17 days later, fresh Cloudflare issues took Downdetector down again.
+        <em>Like a horror movie, but the monster is a config file.</em> <a href="https://www.rte.ie/news/world/2025/1205/1547438-cloudflare" target="_blank" rel="noopener">source</a></div></li>
+      <li class="next"><time>Next time</time><div><b>???</b> Nobody knows when. But we'll be here. Watching. Blinking occasionally.</div></li>
+    </ol>
+  </section>
+
+
+  <div class="grid">
+    <div class="glass panel">
+      <h2>The chain of trust</h2>
+      <ul class="chain">
+        <li><span class="dot" id="d-net"></span>Your internet<small id="ms-net">—</small></li>
+        <li><span class="dot" id="d-dd"></span>Downdetector<small id="ms-dd">—</small></li>
+        <li><span class="dot up"></span>Us (if you can read this)<small>trust us</small></li>
+        <li><span class="ic">🧑‍💼</span>Dave, our intern, watching us<small id="dave">on lunch</small></li>
+        <li><span class="ic">👵</span>Dave's mum, watching Dave<small>very proud</small></li>
+        <li><span class="ic">🐢</span>…and so on<small>turtles ∞</small></li>
+      </ul>
+    </div>
+    <div class="glass panel">
+      <h2>Frequently panicked questions</h2>
+      <details><summary>What if this site goes down?</summary><p>Then you'll need detectthedetectthedowndetector.com. We're still negotiating with Dave.</p></details>
+      <details><summary>Is this an official Downdetector product?</summary><p>No. We're just the friend who texts "u up?" every 60 seconds.</p></details>
+      <details><summary>Is it DNS?</summary><p>Statistically, yes. Emotionally, also yes.</p></details>
+      <details><summary>What's your disaster recovery plan?</summary><p>Step 1: scream. Step 2: check this page. Step 3: refer to step 1.</p></details>
+      <details><summary>Can I click the eye?</summary><p>You can. It doesn't like it.</p></details>
+    </div>
+  </div>
+
+  <footer>
+    <div class="latin">Quis custodiet ipsos custodes?</div>
+    <div>Who watches the watchmen? <b>We do.</b> Every 60 seconds. Unpaid. Unslept.</div>
+    <a class="powered" href="https://kloudmsp.com" target="_blank" rel="noopener" aria-label="Powered by Kloud MSP"><span>⚡ Powered by</span> <span class="klogo">Kloud MSP<span class="kdots"><i></i><i></i></span></span></a>
+    <div class="powered-sub">
+      <div class="chips"><span>🖥️ Managed IT</span><span>☁️ Managed Cloud</span><span>🛡️ Managed Security Service Provider</span></div>
+      Tired of staring at a giant eye all day? 👀 <a id="kcta" href="https://kloudmsp.com" target="_blank" rel="noopener">See what we really do →</a><br>
+      <span style="opacity:.7">(Warning: clicking is the only known way to make the eye stop watching you. We don't make the rules. Dave does.)</span>
+    </div>
+    <div class="second">Second opinion? <a href="https://check-host.net/check-http?host=https://downdetector.com" target="_blank" rel="noopener">Check from 30+ countries</a></div>
+    <div class="fine">How it works: every 30 seconds our server visits downdetector.com and reads the real response.
+      Normal page = up. Server error, Cloudflare error page, timeout or DNS failure = down. If you can't even reach us, it's (definitely) you.
+      Not affiliated with Downdetector or Ookla. We just worry about them.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const TARGET = "https://downdetector.com/";
+  const CONTROL = "https://www.google.com/generate_204";
+  const TIMEOUT = 8000, INTERVAL = 30000;
+  const API = "/api/check";
+  let source = "server";
+
+  let preview = false, forceDown = false, timer = null, lastState = null;
+  try {
+    document.addEventListener("securitypolicyviolation", e => {
+      const u = String(e.blockedURI || "");
+      if (u.includes("downdetector") || u.includes("google")) preview = true;
+    });
+  } catch(e) {}
+  if (/claude|anthropic|artifact/i.test(location.hostname)) preview = true;
+
+  const Q = {
+    up: [
+      "Downdetector is up. The universe remains debuggable.",
+      "All good. The watchmen are watching. We are watching them watch.",
+      "Up and running. Go back to blaming your ISP.",
+      "Downdetector lives. Somewhere, a status page sighs in relief.",
+      "It's up. You may now resume refreshing it nervously.",
+      "Downdetector is fine. Your app is the problem. Sorry, someone had to say it.",
+      "Up. We're almost disappointed. We had a whole press release ready.",
+      "Alive and well. Unlike your weekend plans if it ever goes down on a Friday.",
+      "Up. Dave can stop sweating now. Dave, stop sweating."
+    ],
+    down: [
+      "Downdetector is DOWN. Who do we report this to? …Downdetector?",
+      "The watchmen have fallen. We are now the last line of defence. Mildly terrifying.",
+      "It's down. Somebody check if it's DNS. It's always DNS.",
+      "DOWN. 50,000 people are trying to report it to the site that is down.",
+      "Down. Somewhere, a CDN engineer just spilled their coffee.",
+      "DOWN. This is our Super Bowl. We've trained our whole lives for this.",
+      "The internet's smoke alarm is beeping. Someone get a ladder.",
+      "Downdetector is down. We'd post about it on social media, but that's probably down too.",
+      "Down. Quick, everyone act natural and blame the intern."
+    ],
+    you: [
+      "Plot twist: it's not them, it's you. Your internet looks down.",
+      "We can't reach anything. Check the Wi-Fi before you panic the world.",
+      "The internet isn't broken. Your router is just having a moment. Give it a hug (and a reboot).",
+      "Before you tweet 'the internet is down', check the cable your cat is sitting on."
+    ]
+  };
+  const SELF = [
+    "If you can read this, no. If you can't read this… how are you reading this?",
+    "We checked. We're up. Dave says we're up. Dave is very reliable (citation needed).",
+    "This site is up. Philosophically, are any of us truly up?",
+    "Nope, we're here. We never leave. We can't leave. Send snacks."
+  ];
+  const POKE = ["Ow.", "Rude.", "I'm WORKING here.", "That's my eye!", "Do you poke all your monitoring tools?", "Okay, now I'm watching YOU."];
+  const NEWS = [
+    "Downdetector still up, our investors visibly disappointed",
+    "LOCAL MAN refreshes this page 400 times, describes it as 'self-care'",
+    "EXPERTS confirm it is, in fact, always DNS",
+    "Dave the intern promoted to Chief Watching Officer, salary unchanged (zero)",
+    "STUDY: 9 out of 10 outages begin with 'quick change, no need to test'",
+    "Downdetector reports 0 reports about Downdetector, citing 'where would they even report it'",
+    "Our own uptime monitor is a guy named Steve who checks when he remembers",
+    "Have you tried turning it off and on again? We have. Repeatedly. For fun.",
+    "Eye-watching-industry hit by staff shortage: everyone too busy blinking"
+  ];
+  const DAVE = ["on lunch","asleep","watching cat videos","'working from home'","refreshing us","on another lunch"];
+  const PANIC = {up:[6,"var(--up)","Zen 🧘"], down:[100,"var(--down)","MELTDOWN 🔥"], you:[55,"var(--warn)","Sweaty 😅"]};
+  let checks = 0, fails = 0, coffee = 3, calmSince = Date.now(), record = 0;
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+  const $ = id => document.getElementById(id) || document.createElement("div");
+
+  /* eye follows the cursor */
+  let target = {x:0,y:0};
+  const eye = $("eye"), pupil = $("pupil");
+  function aim(cx, cy){
+    const r = eye.getBoundingClientRect();
+    const dx = cx - (r.left + r.width/2), dy = cy - (r.top + r.height/2);
+    const d = Math.hypot(dx,dy) || 1, m = Math.min(16, d/12);
+    pupil.style.transform = `translate(${dx/d*m}px,${dy/d*m*.8}px)`;
+  }
+  window.addEventListener("pointermove", e => aim(e.clientX, e.clientY));
+  eye.addEventListener("click", () => {
+    $("quip").textContent = pick(POKE);
+    eye.classList.remove("wink"); void eye.offsetWidth; eye.classList.add("wink");
+  });
+  eye.style.cursor = "pointer";
+
+  function rain(chars, n){
+    for (let i=0;i<n;i++){
+      const s = document.createElement("span");
+      s.className = "fx"; s.textContent = pick(chars);
+      s.style.left = Math.random()*100 + "vw";
+      s.style.animationDuration = (2.2 + Math.random()*2.2) + "s";
+      s.style.animationDelay = (Math.random()*.8) + "s";
+      s.style.fontSize = (18 + Math.random()*22) + "px";
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 5500);
+    }
+  }
+
+  function probe(url){
+    const t0 = performance.now();
+    const ctrl = ("AbortController" in window) ? new AbortController() : null;
+    const to = new Promise(res => setTimeout(() => { try{ctrl && ctrl.abort()}catch(e){}; res({ok:false, ms:TIMEOUT, timeout:true}); }, TIMEOUT));
+    const f = fetch(url + (url.includes("?")?"&":"?") + "_=" + Date.now(), {mode:"no-cors", cache:"no-store", signal: ctrl ? ctrl.signal : undefined})
+      .then(() => ({ok:true, ms:Math.round(performance.now()-t0)}))
+      .catch(() => ({ok:false, ms:Math.round(performance.now()-t0)}));
+    return Promise.race([f, to]);
+  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function serverCheck(){
+    const ctrl = ("AbortController" in window) ? new AbortController() : null;
+    const t = setTimeout(() => { try{ctrl && ctrl.abort()}catch(e){} }, 15000);
+    try {
+      const res = await fetch(API + "?_=" + Math.floor(Date.now()/20000), {cache:"no-store", signal: ctrl ? ctrl.signal : undefined});
+      if (!res.ok) return null;
+      const j = await res.json();
+      if (!j || !j.status) return null;
+      return j;
+    } catch(e) { return null; } finally { clearTimeout(t); }
+  }
+  async function simulate(){
+    await sleep(800 + Math.random()*900);
+    if (forceDown) return {net:{ok:true, ms:40+Math.round(Math.random()*40)}, dd:{ok:false, ms:TIMEOUT, timeout:true}};
+    return {net:{ok:true, ms:30+Math.round(Math.random()*50)}, dd:{ok:true, ms:120+Math.round(Math.random()*260)}};
+  }
+  function setDot(id, ok){ $(id).className = "dot " + (ok ? "up" : "down"); }
+  const fmt = ms => { const s=Math.floor(ms/1000); return [s/3600|0,(s%3600)/60|0,s%60].map(v=>String(v).padStart(2,"0")).join(":"); };
+
+  function render(state, r){
+    document.body.className = "s-" + state;
+    $("answer").textContent = state==="up" ? "NOPE." : state==="down" ? "YES!!" : "IT'S YOU.";
+    $("quip").textContent = pick(Q[state]);
+    $("iris").setAttribute("r", state==="down" ? 13 : state==="you" ? 18 : 22);
+    setDot("d-net", r.net.ok); setDot("d-dd", r.dd.ok);
+    $("ms-net").textContent = r.net.ok ? (r.net.ms ? r.net.ms+" ms" : "working") : "unreachable";
+    $("ms-dd").textContent = r.dd.reason ? (r.dd.ok ? r.dd.ms+" ms · "+r.dd.reason : r.dd.reason)
+      : (r.dd.ok ? r.dd.ms+" ms" : (r.dd.timeout ? "timed out" : "unreachable"));
+    $("dave").textContent = state==="down" ? "PANICKING" : pick(DAVE);
+    const now = new Date();
+    $("meta").textContent = (preview ? "simulated · " : source==="server" ? "live server check · " : "browser check · ") + "checked " + now.toLocaleTimeString() + " · next check in 30s";
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="t">'+now.toLocaleTimeString()+'</span><span class="s-'+state+'">'+
+      (state==="up"?"UP  ":state==="down"?"DOWN":"YOU ")+'</span><span>'+(r.dd.ok ? r.dd.ms+" ms" : "— the horror —")+'</span>';
+    const log = $("log"); log.prepend(li);
+    while (log.children.length > 30) log.removeChild(log.lastChild);
+
+    checks++;
+    if (state==="down") { fails++; coffee += 4; } else if (Math.random()<.3) coffee++;
+    $("st-checks").textContent = checks; $("st-fails").textContent = fails; $("st-coffee").textContent = coffee;
+    const p = PANIC[state];
+    $("panicbar").style.width = p[0]+"%"; $("panicbar").style.background = p[1]; $("paniclabel").textContent = p[2];
+
+    const hero = $("hero");
+    if (state==="down") {
+      record = Math.max(record, Date.now()-calmSince); calmSince = Date.now();
+      $("record").textContent = fmt(record);
+      hero.classList.remove("shake"); void hero.offsetWidth; hero.classList.add("shake");
+      const f = $("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+      rain(["🔥","🚨","💀","😱","🧯"], 28);
+    } else if (state==="up" && lastState==="down") {
+      rain(["🎉","✨","🥳","💚","🎊"], 36);
+    }
+    lastState = state;
+    document.title = (state==="up"?"🟢":state==="down"?"🔴":"🟡") + " Detect the Downdetector";
+  }
+
+  async function check(){
+    clearTimeout(timer);
+    document.body.className = "s-wait";
+    $("answer").textContent = "…";
+    $("quip").textContent = pick(["Squinting at the watchtower…","Poking Downdetector with a stick…","Asking nicely…","Pinging the pinger…","Detecting the detector…"]);
+    let r;
+    if (preview) r = await simulate();
+    else {
+      const api = await serverCheck();
+      if (api && api.status !== "unknown") {
+        source = "server";
+        r = {net:{ok:true, ms:0}, dd:{ok: api.status==="up", ms: api.ms, reason: api.reason}};
+      } else {
+        // No server (or server is blind): fall back to the browser check.
+        source = "browser";
+        const [net, dd] = await Promise.all([probe(CONTROL), probe(TARGET)]);
+        await sleep(50);
+        r = preview ? await simulate() : {net, dd};
+      }
+    }
+    if (preview) { $("banner").classList.add("show"); $("chaos").classList.add("show"); }
+    render(r.dd.ok ? "up" : (r.net.ok ? "down" : "you"), r);
+    timer = setTimeout(check, INTERVAL);
+  }
+
+  setInterval(() => { $("clock").textContent = fmt(Date.now()-calmSince); }, 1000);
+  $("ticker").textContent = NEWS.sort(() => Math.random()-.5).join("   ◆   ");
+  $("self").addEventListener("click", () => {
+    $("quip").textContent = pick(SELF);
+    eye.classList.remove("wink"); void eye.offsetWidth; eye.classList.add("wink");
+  });
+  const BEG = ["Go on. Click it. 👉", "The eye says: click it.", "Dave's job depends on this click.", "It's a nice website. Very calm. No eyes.", "You've come this far…"];
+  const kcta = $("kcta");
+  if (kcta) {
+    let saved = "";
+    kcta.addEventListener("mouseenter", () => { saved = document.title; document.title = "👉 " + pick(BEG); $("quip").textContent = pick(BEG); });
+    kcta.addEventListener("mouseleave", () => { if (saved) document.title = saved; });
+  }
+  /* the vote */
+  const YES = ["Dave has been informed. Dave is weeping with joy. 😭", "Thank you! Dave just asked for a raise. Denied.", "Your thumbs up has been stored in a highly available, multi-region… sticky note.", "Dave's mum says thank you. She's very proud."];
+  const DODGE = ["Nope 🙃", "Missed!", "Too slow", "Are you sure?", "Think of Dave"];
+  const NO = ["Fine. Dave will cry quietly in the server room. 💧", "Feedback forwarded to /dev/null. It's very full.", "Noted. Dave's next idea: a page that detects people who click 👎.", "Ouch. The eye saw that. The eye remembers."];
+  let dodges = 0;
+  const noBtn = $("no");
+  function dodge(){
+    if (dodges >= 4) { noBtn.textContent = "👎 Nah (fine, click me)"; noBtn.style.transform = "none"; return; }
+    dodges++;
+    const x = (Math.random()*220 - 110) | 0, y = (Math.random()*40 - 20) | 0;
+    noBtn.style.transform = `translate(${x}px,${y}px) rotate(${(Math.random()*20-10)|0}deg)`;
+    noBtn.textContent = "👎 " + pick(DODGE);
+  }
+  noBtn.addEventListener("mouseenter", dodge);
+  noBtn.addEventListener("click", e => {
+    if (dodges < 4) { dodge(); return; }
+    $("votemsg").textContent = pick(NO);
+    rain(["💧","😢","🥲"], 18);
+  });
+  $("yes").addEventListener("click", () => {
+    $("votemsg").textContent = pick(YES);
+    rain(["👍","🎉","✨","🥳","👁️"], 34);
+  });
+
+  $("again").addEventListener("click", check);
+  $("chaos").addEventListener("click", () => {
+    forceDown = !forceDown;
+    $("chaos").textContent = forceDown ? "🕊️ Restore world peace" : "☄️ Simulate the apocalypse";
+    check();
+  });
+  check();
+})();
+</script>
+</body>
+</html>
